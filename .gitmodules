@@ -1,0 +1,3 @@
+[submodule "addons/wizardcore"]
+	path = addons/wizardcore
+	url = https://github.com/Wizard-Workshop/wizardcore-godot
