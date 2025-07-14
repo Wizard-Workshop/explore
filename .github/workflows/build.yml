@@ -33,7 +33,6 @@ jobs:
 
     # 3 ─ Download if cache missed
     - name: Install Godot desktop + templates
-      if: steps.godot-cache.outputs.cache-hit != 'true'
       run: |
         base="${GODOT_BASE_URL}/${GODOT_VERSION}"
 
