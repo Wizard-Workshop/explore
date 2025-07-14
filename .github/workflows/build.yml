@@ -1,55 +1,75 @@
 name: Explore CI
 
-# ──────────────── trigger rules ────────────────
+# ───────── trigger rules ─────────
 on:
   push:
     branches: [main, staging]
-    tags: ["v*"]
+    tags:     ["v*"]
   pull_request:
     branches: [staging]
 
-# ──────────────── shared variables ─────────────
+# ───────── shared constants ─────────
 env:
-  GODOT_VERSION: "4.4.1"               # update in ONE place when bumping
-  WEB_PRESET: "Web"                    # must match preset name in Godot
+  GODOT_VERSION: 4.4.1-stable           # one place to bump
+  WEB_PRESET: "Web"                     # must match preset name
   IOS_PRESET: "iOS"
+  GODOT_BASE: https://github.com/godotengine/godot/releases/download
 
 jobs:
-# ──────────────────── Web build & deploy ────────────────────
-  build-web:
+# ───────────────── WEB BUILD & PAGES DEPLOY ─────────────────
+  web:
     runs-on: ubuntu-latest
 
     steps:
-    # 1 ▸ checkout repo + submodules (WizardCore)
-    - uses: actions/checkout@v4
-      with:
-        submodules: 'recursive'
+      # 1 ▸ checkout (with WizardCore submodule)
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
 
-    # 2 ▸ cache Godot headless + export templates
-    - name: Cache Godot ${{ env.GODOT_VERSION }}
-      id: godot-cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/godot
-          ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
-        key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}
+      # 2 ▸ cache headless binary + templates
+      - name: Cache Godot
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}
+          key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}
 
-    # 3 ▸ download only on cache miss
-    - name: Install Godot headless + templates
-      if: steps.godot-cache.outputs.cache-hit != 'true'
-      run: |
-        wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip -O godot.zip
-        unzip -q godot.zip -d ~/godot
-        chmod +x ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
-        wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -O templates.tpz
-        mkdir -p ~/.local/share/godot/export_templates
-        unzip -q templates.tpz -d ~/.local/share/godot/export_templates
+      # 3 ▸ download only if cache missed
+      - name: Install Godot headless + templates
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          VERSION=${GODOT_VERSION}
+          base=${GODOT_BASE}/${VERSION}
 
-    # 4 ▸ export HTML5 build
-    - name: Export HTML5
-      run: |
-        ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless \
-          --export-release "${{ env.WEB_PRESET }}" build/web/index.html
+          # -- headless binary
+          wget -q ${base}/godot-${VERSION}-linux-headless.64.zip -O godot.zip
+          unzip -q godot.zip -d ~/godot
+          chmod +x ~/godot/godot
 
-    # 5 ▸ upload artifact for manual download
+          # -- export templates
+          wget -q ${base}/godot-${VERSION}-export-templates.tpz -O templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates/${VERSION}
+          unzip -q templates.tpz -d ~/.local/share/godot/export_templates/${VERSION}
+
+      # 4 ▸ export HTML5
+      - name: Export HTML5
+        run: |
+          ~/godot/godot --headless \
+            --export-release "${WEB_PRESET}" build/web/index.html
+
+      # 5 ▸ save artifact (optional)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: html5-build
+          path: build/web
+
+      # 6 ▸ deploy to GitHub Pages (main & tags)
+      - name: Deploy to Pages
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          keep_history: true
+
