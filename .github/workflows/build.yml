@@ -39,10 +39,10 @@ jobs:
     - name: Install Godot headless + templates
       if: steps.godot-cache.outputs.cache-hit != 'true'
       run: |
-        wget -q https://downloads.tuxfamily.org/godotengine/${GODOT_VERSION}/headless/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip -O godot.zip
+        wget -q https://github.com/godotengine/godot/releases/download/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip -O godot.zip
         unzip -q godot.zip -d ~/godot
         chmod +x ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
-        wget -q https://downloads.tuxfamily.org/godotengine/${GODOT_VERSION}/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -O templates.tpz
+        wget -q https://github.com/godotengine/godot/releases/download/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -O templates.tpz
         mkdir -p ~/.local/share/godot/export_templates
         unzip -q templates.tpz -d ~/.local/share/godot/export_templates
 
