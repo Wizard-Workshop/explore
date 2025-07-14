@@ -55,6 +55,12 @@ jobs:
         unzip -q templates.tpz -d /tmp/tpl_unzip
         mv /tmp/tpl_unzip/templates/* $TPL_DIR
 
+        cd $TPL_DIR
+        if [ -f web_debug.zip ]; then
+        cp web_debug.zip        web_nothreads_debug.zip
+        cp web_release.zip      web_nothreads_release.zip
+        fi
+
     # 4 ─ Export HTML5
     - name: Export HTML5
       run: |
