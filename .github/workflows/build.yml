@@ -2,27 +2,26 @@ name: Explore • Web & Pages
 
 on:
   push:
-    branches: [main]          # build on main commits
-    tags:     ["v*"]          # and version tags
+    branches: [main]
+    tags:     ["v*"]
   pull_request:
-    branches: [main]          # test PRs (no deploy)
+    branches: [main]
 
 env:
   GODOT_VERSION:  "4.4.1-stable"
   GODOT_BASE_URL: "https://github.com/godotengine/godot/releases/download"
-  WEB_PRESET:     "Web"       # must match your export preset
+  WEB_PRESET:     "Web"
 
 jobs:
   build-web:
     runs-on: ubuntu-latest
 
     steps:
-    # 1 ─ checkout repo + submodules
+    # 1 ─ Checkout repo (with submodules)
     - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      with: { submodules: recursive }
 
-    # 2 ─ cache the binary + templates
+    # 2 ─ Cache Godot binary + templates
     - name: Cache Godot ${{ env.GODOT_VERSION }}
       id: godot-cache
       uses: actions/cache@v4
@@ -32,47 +31,52 @@ jobs:
           ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}
         key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}
 
-    # 3 ─ download only if cache missed
+    # 3 ─ Download if cache missed
     - name: Install Godot desktop + templates
       if: steps.godot-cache.outputs.cache-hit != 'true'
       run: |
         base="${GODOT_BASE_URL}/${GODOT_VERSION}"
 
+        # ─── editor ───
         BIN_URL=${base}/Godot_v${GODOT_VERSION}_linux.x86_64.zip
-        echo "⬇️  Fetching editor: $BIN_URL"
+        echo "⬇️  $BIN_URL"
         wget -q $BIN_URL -O godot.zip
         unzip -q godot.zip -d ~/godot
         chmod +x ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64
 
+        # ─── export templates ───
         TPL_URL=${base}/Godot_v${GODOT_VERSION}_export_templates.tpz
-        echo "⬇️  Fetching templates: $TPL_URL"
+        echo "⬇️  $TPL_URL"
         wget -q $TPL_URL -O templates.tpz
-        mkdir -p ~/.local/share/godot/export_templates
-        unzip -q templates.tpz -d ~/.local/share/godot/export_templates
 
-    # 4 ─ export HTML5 build
+        TPL_DIR=~/.local/share/godot/export_templates/${GODOT_VERSION}
+        mkdir -p $TPL_DIR
+        # unzip directly into the version folder (strip leading "templates/")
+        unzip -q templates.tpz -d /tmp/tpl_unzip
+        mv /tmp/tpl_unzip/templates/* $TPL_DIR
+
+    # 4 ─ Export HTML5
     - name: Export HTML5
       run: |
         ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 --headless \
-          --export-release "${{ env.WEB_PRESET }}" \
-          build/web/index.html
+          --export-release "${{ env.WEB_PRESET }}" build/web/index.html
 
-    # 5 ─ upload artifact for manual download
+    # 5 ─ Upload artifact
     - uses: actions/upload-artifact@v4
       with:
         name: html5-build
         path: build/web
 
-    # 6 ─ annotate the final site URL
+    # 6 ─ Show final site URL
     - name: Show Pages URL
       run: |
         OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
         REPO=$(echo "$GITHUB_REPOSITORY"  | cut -d'/' -f2)
         URL="https://${OWNER}.github.io/${REPO}/"
-        echo "🔗 Play it at: $URL"
         echo "::notice title=Play URL::$URL"
+        echo "🔗 Game URL: $URL"
 
-    # 7 ─ deploy to GitHub Pages (main & tags only)
+    # 7 ─ Deploy on main or tags
     - name: Deploy to GitHub Pages
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
       uses: peaceiris/actions-gh-pages@v4
