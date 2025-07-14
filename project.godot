@@ -11,12 +11,14 @@ config_version=5
 [application]
 
 config/name="explore"
+run/main_scene="uid://bostmvf6jxa50"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
 
 WizardCore="*res://addons/wizardcore/wizard_autoload.gd"
+Game="*res://scripts/Game.gd"
 
 [editor_plugins]
 
