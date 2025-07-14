@@ -1,93 +1,82 @@
-name: Explore • Web & Pages
+name: Explore • Web Pages
 
 on:
   push:
-    branches: [main]
-    tags:     ["v*"]
+    branches: [main]      # deploy on main
+    tags:     ["v*"]      # …and version tags
   pull_request:
-    branches: [main]
+    branches: [main]      # build-only
+
+permissions:              # required for deploy-pages
+  contents: read
+  pages: write
+  id-token: write
 
 env:
-  GODOT_VERSION:  "4.4.1-stable"   # dash form for file names / URLs
+  GODOT_VERSION:  "4.4.1-stable"
   GODOT_BASE_URL: "https://github.com/godotengine/godot/releases/download"
   WEB_PRESET:     "Web"
 
 jobs:
-  build-web:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-    # 1 ─ Checkout repo (submodules included)
+    # — checkout —
     - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      with: {submodules: recursive}
 
-    # 2 ─ Cache Godot editor + templates
-    - name: Cache Godot ${{ env.GODOT_VERSION }}
+    # — cache godot —
+    - name: Cache Godot
       id: godot-cache
       uses: actions/cache@v4
       with:
         path: |
           ~/godot
           ~/.local/share/godot/export_templates
-        key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-v4   # bump when you want a fresh cache
+        key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-v5
 
-    # 3 ─ Download only on cache miss
+    # — download editor & templates if cache missed —
     - name: Install Godot desktop + templates
       if: steps.godot-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
         set -e
         base="${GODOT_BASE_URL}/${GODOT_VERSION}"
-        DOT_VERSION="${GODOT_VERSION/-/.}"          # 4.4.1.stable
-
-        # ─── Editor ───
         echo "⬇️  $base/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
-        wget -q "$base/Godot_v${GODOT_VERSION}_linux.x86_64.zip" -O godot.zip
+        wget -q $base/Godot_v${GODOT_VERSION}_linux.x86_64.zip -O godot.zip
         unzip -q godot.zip -d ~/godot
         chmod +x ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64
 
-        # ─── Templates ───
         echo "⬇️  $base/Godot_v${GODOT_VERSION}_export_templates.tpz"
-        wget -q "$base/Godot_v${GODOT_VERSION}_export_templates.tpz" -O templates.tpz
+        wget -q $base/Godot_v${GODOT_VERSION}_export_templates.tpz -O templates.tpz
+        mkdir -p /tmp/tpl && unzip -q templates.tpz -d /tmp/tpl
+        for F in /tmp/tpl/templates/*; do
+          mkdir -p ~/.local/share/godot/export_templates/4.4.1.stable
+          cp "$F"   ~/.local/share/godot/export_templates/4.4.1.stable/
+        done
 
-        mkdir -p /tmp/tpl_unzip
-        unzip -q templates.tpz -d /tmp/tpl_unzip
-        # Copy to dash folder
-        mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}
-        mv /tmp/tpl_unzip/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}/
-        # Copy to dot folder (what Godot looks for)
-        mkdir -p ~/.local/share/godot/export_templates/${DOT_VERSION}
-        cp -r ~/.local/share/godot/export_templates/${GODOT_VERSION}/* \
-              ~/.local/share/godot/export_templates/${DOT_VERSION}/
-
-    # 4 ─ Export HTML5
+    # — export HTML5 —
     - name: Export HTML5
       run: |
-        mkdir -p build/web 
+        mkdir -p build/web
         ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 --headless \
-          --export-release "${WEB_PRESET}" \
-          build/web/index.html
+          --export-release "${WEB_PRESET}" build/web/index.html
 
-    # 5 ─ Upload artifact
-    - uses: actions/upload-artifact@v4
+    # — upload artifact for Pages —
+    - uses: actions/upload-pages-artifact@v3
       with:
-        name: html5-build
-        path: build/web
+        path: build/web        # this becomes the Pages content
 
-    # 6 ─ Show Pages URL
-    - name: Show Pages URL
-      shell: bash
-      run: |
-        OWNER="${GITHUB_REPOSITORY%%/*}"
-        REPO="${GITHUB_REPOSITORY##*/}"
-        URL="https://${OWNER}.github.io/${REPO}/"
-        echo "::notice title=Play URL::$URL"
+  # ───────────────── deploy job ─────────────────
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
-    # 7 ─ Deploy to GitHub Pages
+    steps:
     - name: Deploy to GitHub Pages
-      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
-      uses: peaceiris/actions-gh-pages@v4
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: build/web
+      id: deployment
+      uses: actions/deploy-pages@v4
