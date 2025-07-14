@@ -1,75 +1,82 @@
-name: Explore CI
+name: Explore • Web & Pages
 
-# ───────── trigger rules ─────────
 on:
   push:
-    branches: [main, staging]
-    tags:     ["v*"]
+    branches: [main]          # build on main commits
+    tags:     ["v*"]          # and version tags
   pull_request:
-    branches: [staging]
+    branches: [main]          # test PRs (no deploy)
 
-# ───────── shared constants ─────────
 env:
-  GODOT_VERSION: 4.4.1-stable           # one place to bump
-  WEB_PRESET: "Web"                     # must match preset name
-  IOS_PRESET: "iOS"
-  GODOT_BASE: https://github.com/godotengine/godot/releases/download
+  GODOT_VERSION:  "4.4.1-stable"
+  GODOT_BASE_URL: "https://github.com/godotengine/godot/releases/download"
+  WEB_PRESET:     "Web"       # must match your export preset
 
 jobs:
-# ───────────────── WEB BUILD & PAGES DEPLOY ─────────────────
-  web:
+  build-web:
     runs-on: ubuntu-latest
 
     steps:
-      # 1 ▸ checkout (with WizardCore submodule)
-      - uses: actions/checkout@v4
-        with: { submodules: recursive }
+    # 1 ─ checkout repo + submodules
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
-      # 2 ▸ cache headless binary + templates
-      - name: Cache Godot
-        id: godot-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/godot
-            ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}
-          key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}
+    # 2 ─ cache the binary + templates
+    - name: Cache Godot ${{ env.GODOT_VERSION }}
+      id: godot-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/godot
+          ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}
+        key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}
 
-      # 3 ▸ download only if cache missed
-      - name: Install Godot headless + templates
-        if: steps.godot-cache.outputs.cache-hit != 'true'
-        run: |
-          VERSION=${GODOT_VERSION}
-          base=${GODOT_BASE}/${VERSION}
+    # 3 ─ download only if cache missed
+    - name: Install Godot desktop + templates
+      if: steps.godot-cache.outputs.cache-hit != 'true'
+      run: |
+        base="${GODOT_BASE_URL}/${GODOT_VERSION}"
 
-          # -- headless binary
-          wget -q ${base}/godot-${VERSION}-linux-headless.64.zip -O godot.zip
-          unzip -q godot.zip -d ~/godot
-          chmod +x ~/godot/godot
+        BIN_URL=${base}/Godot_v${GODOT_VERSION}_linux.x86_64.zip
+        echo "⬇️  Fetching editor: $BIN_URL"
+        wget -q $BIN_URL -O godot.zip
+        unzip -q godot.zip -d ~/godot
+        chmod +x ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64
 
-          # -- export templates
-          wget -q ${base}/godot-${VERSION}-export-templates.tpz -O templates.tpz
-          mkdir -p ~/.local/share/godot/export_templates/${VERSION}
-          unzip -q templates.tpz -d ~/.local/share/godot/export_templates/${VERSION}
+        TPL_URL=${base}/Godot_v${GODOT_VERSION}_export_templates.tpz
+        echo "⬇️  Fetching templates: $TPL_URL"
+        wget -q $TPL_URL -O templates.tpz
+        mkdir -p ~/.local/share/godot/export_templates
+        unzip -q templates.tpz -d ~/.local/share/godot/export_templates
 
-      # 4 ▸ export HTML5
-      - name: Export HTML5
-        run: |
-          ~/godot/godot --headless \
-            --export-release "${WEB_PRESET}" build/web/index.html
+    # 4 ─ export HTML5 build
+    - name: Export HTML5
+      run: |
+        ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 --headless \
+          --export-release "${{ env.WEB_PRESET }}" \
+          build/web/index.html
 
-      # 5 ▸ save artifact (optional)
-      - uses: actions/upload-artifact@v4
-        with:
-          name: html5-build
-          path: build/web
+    # 5 ─ upload artifact for manual download
+    - uses: actions/upload-artifact@v4
+      with:
+        name: html5-build
+        path: build/web
 
-      # 6 ▸ deploy to GitHub Pages (main & tags)
-      - name: Deploy to Pages
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: build/web
-          keep_history: true
+    # 6 ─ annotate the final site URL
+    - name: Show Pages URL
+      run: |
+        OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+        REPO=$(echo "$GITHUB_REPOSITORY"  | cut -d'/' -f2)
+        URL="https://${OWNER}.github.io/${REPO}/"
+        echo "🔗 Play it at: $URL"
+        echo "::notice title=Play URL::$URL"
 
+    # 7 ─ deploy to GitHub Pages (main & tags only)
+    - name: Deploy to GitHub Pages
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: build/web
+        keep_history: true
