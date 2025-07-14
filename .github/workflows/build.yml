@@ -1,0 +1,43 @@
+name: Explore CI
+
+on:
+  push:
+    branches: [main]          # build on every main commit
+    tags: ["v*"]              # …and on version tags
+  pull_request:
+    branches: [staging]       # PRs test-build only
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      # 1—checkout (with submodule)
+      - uses: actions/checkout@v4
+        with: {submodules: 'recursive'}
+
+      # 2—download headless Godot
+      - name: Install Godot headless
+        run: |
+          wget -q https://downloads.tuxfamily.org/godotengine/4.3/headless/Godot_v4.3-stable_linux.x86_64.zip -O g.zip
+          unzip -q g.zip -d ~/
+          chmod +x ~/Godot_v4.3-stable_linux.x86_64
+
+      # 3—export HTML5 build to build/web/
+      - name: Export HTML5
+        run: |
+          ~/Godot_v4.3-stable_linux.x86_64 --headless \
+            --export-release "Web" build/web/index.html
+
+      # 4—upload artifact for inspection (optional)
+      - uses: actions/upload-artifact@v4
+        with: {name: html5, path: build/web}
+
+      # 5—deploy to GitHub Pages **only** on main commits or tags
+      - name: Deploy to Pages
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/tags/')
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          # Optional: keep prior history so old builds remain
+          keep_history: true
