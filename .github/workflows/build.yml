@@ -8,7 +8,7 @@ on:
     branches: [main]
 
 env:
-  GODOT_VERSION:  "4.4.1-stable"                         # dash format
+  GODOT_VERSION:  "4.4.1-stable"   # dash form for file names / URLs
   GODOT_BASE_URL: "https://github.com/godotengine/godot/releases/download"
   WEB_PRESET:     "Web"
 
@@ -17,64 +17,75 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # 1 ─ Checkout repo (submodules included)
     - uses: actions/checkout@v4
-      with: { submodules: recursive }
+      with:
+        submodules: recursive
 
+    # 2 ─ Cache Godot editor + templates
     - name: Cache Godot ${{ env.GODOT_VERSION }}
       id: godot-cache
       uses: actions/cache@v4
       with:
         path: |
           ~/godot
-          ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION/-/. }}
-        key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-v3   # bumped
+          ~/.local/share/godot/export_templates
+        key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-v4   # bump when you want a fresh cache
 
+    # 3 ─ Download only on cache miss
     - name: Install Godot desktop + templates
       if: steps.godot-cache.outputs.cache-hit != 'true'
+      shell: bash
       run: |
+        set -e
         base="${GODOT_BASE_URL}/${GODOT_VERSION}"
+        DOT_VERSION="${GODOT_VERSION/-/.}"          # 4.4.1.stable
 
-        # Editor
-        BIN_URL=${base}/Godot_v${GODOT_VERSION}_linux.x86_64.zip
-        echo "⬇️  $BIN_URL"
-        wget -q $BIN_URL -O godot.zip
+        # ─── Editor ───
+        echo "⬇️  $base/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+        wget -q "$base/Godot_v${GODOT_VERSION}_linux.x86_64.zip" -O godot.zip
         unzip -q godot.zip -d ~/godot
         chmod +x ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64
 
-        # Templates
-        TPL_URL=${base}/Godot_v${GODOT_VERSION}_export_templates.tpz
-        echo "⬇️  $TPL_URL"
-        wget -q $TPL_URL -O templates.tpz
-        TPL_DIR=~/.local/share/godot/export_templates/${GODOT_VERSION}
-        mkdir -p $TPL_DIR
+        # ─── Templates ───
+        echo "⬇️  $base/Godot_v${GODOT_VERSION}_export_templates.tpz"
+        wget -q "$base/Godot_v${GODOT_VERSION}_export_templates.tpz" -O templates.tpz
+
+        mkdir -p /tmp/tpl_unzip
         unzip -q templates.tpz -d /tmp/tpl_unzip
-        mv /tmp/tpl_unzip/templates/* $TPL_DIR
+        # Copy to dash folder
+        mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}
+        mv /tmp/tpl_unzip/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}/
+        # Copy to dot folder (what Godot looks for)
+        mkdir -p ~/.local/share/godot/export_templates/${DOT_VERSION}
+        cp -r ~/.local/share/godot/export_templates/${GODOT_VERSION}/* \
+              ~/.local/share/godot/export_templates/${DOT_VERSION}/
 
-        # Godot expects dot-separated folder; copy there too
-        DOT_DIR=~/.local/share/godot/export_templates/${GODOT_VERSION/-/.}
-        mkdir -p "$DOT_DIR"
-        cp -r $TPL_DIR/* "$DOT_DIR"
-
+    # 4 ─ Export HTML5
     - name: Export HTML5
       run: |
         ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 --headless \
-          --export-release "${{ env.WEB_PRESET }}" \
+          --export-release "${WEB_PRESET}" \
           build/web/index.html
 
+    # 5 ─ Upload artifact
     - uses: actions/upload-artifact@v4
       with:
         name: html5-build
         path: build/web
 
+    # 6 ─ Show Pages URL
     - name: Show Pages URL
+      shell: bash
       run: |
-        OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
-        REPO=$(echo "$GITHUB_REPOSITORY"  | cut -d'/' -f2)
+        OWNER="${GITHUB_REPOSITORY%%/*}"
+        REPO="${GITHUB_REPOSITORY##*/}"
         URL="https://${OWNER}.github.io/${REPO}/"
         echo "::notice title=Play URL::$URL"
 
+    # 7 ─ Deploy to GitHub Pages
     - name: Deploy to GitHub Pages
-      if: github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/tags/')
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
       uses: peaceiris/actions-gh-pages@v4
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
