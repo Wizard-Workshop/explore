@@ -34,6 +34,12 @@ jobs:
             }
           }
 
+
+    - name: Give the artifact time to finish packaging
+      run: |
+        echo "⏳ Waiting 15 s to let GitHub finish the ZIP..."
+        sleep 15
+
     # ── 2. Download the build artifacts ──────────────────────────────────────
     - name: Download Windows build artifact
       uses: actions/download-artifact@v4
