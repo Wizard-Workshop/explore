@@ -1,5 +1,5 @@
 extends CanvasLayer
-@onready var lbl := $Label
+@export var greetingLabel: Label 
 
 func _ready():
 	if WizardCore.Auth.uid == "":
@@ -8,4 +8,4 @@ func _ready():
 		_on_auth(WizardCore.Auth.uid)
 
 func _on_auth(uid:String):
-	lbl.text = "Hello, " + uid + " 👋"
+	greetingLabel.text = "Hello, " + uid + " 👋"

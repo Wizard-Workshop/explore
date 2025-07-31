@@ -1,6 +1,66 @@
-[gd_resource type="Theme" load_steps=3 format=3 uid="uid://b8o8so86ma4ue"]
+[gd_resource type="Theme" load_steps=7 format=3 uid="uid://b8o8so86ma4ue"]
 
 [ext_resource type="FontFile" uid="uid://dve061iarcpa4" path="res://themes/fonts/Bungee-Regular.ttf" id="1_wcgmf"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bs3mp"]
+bg_color = Color(0.0117647, 0.65098, 0.470588, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.00392157, 0.25098, 0.25098, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+shadow_color = Color(0.00784314, 0.45098, 0.368627, 1)
+shadow_size = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_njw6e"]
+bg_color = Color(0.0117647, 0.65098, 0.470588, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.00392157, 0.25098, 0.25098, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+shadow_color = Color(0.00784314, 0.45098, 0.368627, 1)
+shadow_size = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wcgmf"]
+bg_color = Color(0.00784314, 0.45098, 0.368627, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.00392157, 0.25098, 0.25098, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+shadow_color = Color(0.00784314, 0.45098, 0.368627, 1)
+shadow_size = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_x88xt"]
+bg_color = Color(0.0117647, 0.65098, 0.470588, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.00392157, 0.25098, 0.25098, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+expand_margin_left = 4.0
+expand_margin_top = 4.0
+expand_margin_right = 4.0
+expand_margin_bottom = 4.0
+shadow_color = Color(0.00784314, 0.45098, 0.368627, 1)
+shadow_size = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_n3bqr"]
 content_margin_left = 2.0
@@ -26,6 +86,17 @@ shadow_color = Color(0.00392157, 0.25098, 0.25098, 1)
 shadow_size = 12
 
 [resource]
+Button/colors/font_color = Color(0.00392157, 0.25098, 0.25098, 1)
+Button/colors/font_focus_color = Color(0.00392157, 0.25098, 0.25098, 1)
+Button/colors/font_hover_color = Color(0.00392157, 0.25098, 0.25098, 1)
+Button/colors/font_hover_pressed_color = Color(0.94902, 0.454902, 0.0196078, 1)
+Button/colors/font_pressed_color = Color(0.94902, 0.454902, 0.0196078, 1)
+Button/font_sizes/font_size = 24
+Button/fonts/font = ExtResource("1_wcgmf")
+Button/styles/focus = SubResource("StyleBoxFlat_bs3mp")
+Button/styles/hover = SubResource("StyleBoxFlat_njw6e")
+Button/styles/normal = SubResource("StyleBoxFlat_wcgmf")
+Button/styles/pressed = SubResource("StyleBoxFlat_x88xt")
 Label/colors/font_color = Color(0.94902, 0.454902, 0.0196078, 1)
 Label/colors/font_outline_color = Color(0.00784314, 0.45098, 0.368627, 1)
 Label/constants/outline_size = 6
