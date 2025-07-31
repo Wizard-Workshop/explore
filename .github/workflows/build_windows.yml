@@ -39,9 +39,17 @@ jobs:
 
         # ▸ Export templates (%APPDATA%\Godot\export_templates\<version>\…)
         Invoke-WebRequest "$base/Godot_v${env:GODOT_VER}_export_templates.tpz" -OutFile tpl.tpz
+        $tempTplDir = "C:\temp_tpl"
+        New-Item -ItemType Directory -Force -Path $tempTplDir | Out-Null
+        Expand-Archive tpl.tpz -DestinationPath $tempTplDir
+        echo "--- Contents of temporary template directory ($tempTplDir) ---"
+        ls -Recurse $tempTplDir
+
         $tplDir = "$env:APPDATA\Godot\export_templates\${env:GODOT_VER}"
         New-Item -ItemType Directory -Force -Path $tplDir | Out-Null
-        Expand-Archive tpl.tpz -DestinationPath $tplDir
+        Copy-Item -Path "$tempTplDir\templates\*" -Destination $tplDir -Recurse -Force
+        echo "--- Contents of final template directory ($tplDir) ---"
+        ls -Recurse $tplDir
 
     # ── rcedit helper (Chocolatey + head-less editor-setting write) ────────────
     - name: Install rcedit
@@ -52,7 +60,7 @@ jobs:
       run: |
         $rcedit = (Get-Command rcedit).Source
         & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
-          --headless --quit `
+          --headless `
           --set editor/export/windows/rcedit "$rcedit"
 
     # ── Export the Windows build (logs streamed & saved) ──────────────────────
