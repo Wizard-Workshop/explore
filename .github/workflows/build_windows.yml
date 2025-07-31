@@ -55,10 +55,6 @@ jobs:
     - name: Install rcedit
       run: choco install rcedit --yes
 
-
-    - name: Install rcedit
-      run: choco install rcedit --yes
-
     - name: Tell Godot where rcedit.exe is
       shell: pwsh
       run: |

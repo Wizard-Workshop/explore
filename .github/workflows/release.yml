@@ -3,7 +3,7 @@ name: Release • bundled artifacts
 
 on:
   workflow_run:
-    workflows: ["Build - Windows"]       # add more build workflows here later
+    workflows: ["Build - Windows"]      # add more build workflows here later
     types: [completed]
 
 jobs:
@@ -12,44 +12,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Download build artifacts
-      id: download_artifact
-      uses: actions/download-artifact@v4
-      with:
-        pattern: "*-build"                # QUOTED so YAML treats it as a string
-        run-id: ${{ github.event.workflow_run.id }}
-        path: dist
-        merge-multiple: true
+      # ── 1. Grab the artifacts produced by the build run ───────────────────
+      - name: Download build artifacts
+        id: download_artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-build"                 # matches “windows-build”
+          run-id:  ${{ github.event.workflow_run.id }}   # ← the BUILD run
+          repository: ${{ github.repository }}            # same repo, just explicit
+          path: dist
+          merge-multiple: true
 
-    - name: Ensure artifacts exist
-      run: |
-        if [ -z "$(ls -A dist)" ]; then
-          echo "No *-build artifacts found for run ${{ github.event.workflow_run.id }}."
-          exit 1
-        fi
+      # ── 2. Sanity-check that something actually came down ─────────────────
+      - name: Ensure artifacts exist
+        run: |
+          if [[ ! -d dist || -z "$(ls -A dist)" ]]; then
+            echo "No *-build artifacts found for run ${{ github.event.workflow_run.id }}."
+            exit 1
+          fi
+          # quick peek for debugging
+          tree -L 2 dist
 
-    - name: Decide tag
-      id: tag
-      run: |
-        if [[ "${{ github.event.workflow_run.head_branch }}" =~ ^v[0-9] ]]; then
-          echo "tag=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
-          echo "prerelease=false" >> $GITHUB_OUTPUT
-        else
-          echo "tag=nightly-${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
-          echo "prerelease=true"  >> $GITHUB_OUTPUT
-        fi
+      # ── 3. Decide which tag we’re publishing to ---------------------------
+      - name: Decide tag
+        id: tag
+        run: |
+          if [[ "${{ github.event.workflow_run.head_branch }}" =~ ^v[0-9] ]]; then
+            echo "tag=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=nightly-${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true"  >> "$GITHUB_OUTPUT"
+          fi
 
-    - name: Create / Update GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name:  ${{ steps.tag.outputs.tag }}
-        name:      ${{ steps.tag.outputs.tag }}
-        prerelease: ${{ steps.tag.outputs.prerelease }}
-        draft: false
-        body: |
-          Automated build from commit ${{ github.event.workflow_run.head_sha }}.
-          Artifacts:
-          ${{ join(fromJson(steps.download_artifact.outputs.artifacts).*, ', ') }}
-        files: dist/**/*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # ── 4. Create (or update) the GitHub Release --------------------------
+      - name: Create / Update GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name:   ${{ steps.tag.outputs.tag }}
+          name:       ${{ steps.tag.outputs.tag }}
+          prerelease: ${{ steps.tag.outputs.prerelease }}
+          draft:      false
+          body: |
+            Automated build from commit ${{ github.event.workflow_run.head_sha }}.
+
+            Artifacts included:
+            ${{ join(fromJson(steps.download_artifact.outputs.artifacts).*, ', ') }}
+          files: dist/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
