@@ -20,15 +20,6 @@ jobs:
       with:
         submodules: recursive
 
-    # ── Restore / populate cache for editor & templates ─────────────────────
-    - name: Restore Godot cache
-      id: godot-cache
-      uses: actions/cache/restore@v4
-      with:
-        path: |
-          C:\godot
-          ${{ env.USERPROFILE }}\AppData\Roaming\Godot\export_templates
-        key: godot-win-${{ env.GODOT_VER }}-v3      # bump if layout logic changes
 
     - name: Install Godot editor + templates (only if cache missed)
       if: steps.godot-cache.outputs.cache-hit != 'true'
@@ -90,14 +81,6 @@ jobs:
         Write-Host "📦 Template directory contents:"
         Get-ChildItem $dotDir -Recurse | ForEach-Object { Write-Host "  • $($_.FullName)" }
 
-    - name: Save Godot cache
-      if: steps.godot-cache.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
-      with:
-        path: |
-          C:\godot
-          ${{ env.USERPROFILE }}\AppData\Roaming\Godot\export_templates
-        key: godot-win-${{ env.GODOT_VER }}-v3
 
     # ── rcedit helper --------------------------------------------------------
     - name: Install rcedit
