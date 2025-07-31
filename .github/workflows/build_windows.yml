@@ -17,20 +17,8 @@ jobs:
     - uses: actions/checkout@v4
       with: { submodules: recursive }
 
-    # ── Cache the editor + templates ────────────────────────────────────────
-    #    (key bumped to v5 so we drop the bad cache once)
-    - name: Cache Godot editor + templates
-      id: godot-cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          C:\godot
-          ${{ env.USERPROFILE }}\AppData\Roaming\Godot\export_templates
-        key: godot-win-${{ env.GODOT_VER }}-v5
-
     # ── Install editor + templates if the cache missed ──────────────────────
     - name: Install Godot editor + templates (if cache missed)
-      if: steps.godot-cache.outputs.cache-hit != 'true'
       shell: pwsh
       run: |
         $base = "https://github.com/godotengine/godot/releases/download/${env:GODOT_VER}"
