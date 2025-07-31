@@ -1,34 +1,30 @@
 # .github/workflows/windows_build.yml
 name: Build - Windows
-
 on:
-  push:
-    branches: [main]
-    tags: ["v*"]
+  push:    {branches: [main], tags: ["v*"]}
 
 env:
   GODOT_VER: 4.4.1-stable
-  WIN_PRESET: "Windows Desktop"
+  PRESET:    "Windows Desktop"
 
 jobs:
   win-build:
     runs-on: windows-latest
-
     steps:
+
+    # ── Checkout + cache (unchanged) ──────────────────────────
     - uses: actions/checkout@v4
       with: {submodules: recursive}
 
-    # ── Cache editor + templates ───────────────────────────────
     - uses: actions/cache@v4
       id: godot-cache
       with:
         path: |
           C:\godot
-          ~\AppData\Roaming\Godot\export_templates
+          ~\AppData\Roaming\Godot\export_templates   # linter stays quiet
         key: godot-win-${{ env.GODOT_VER }}-v1
 
-    # ── Install Godot + templates if cache missed ──────────────
-    - name: Install Godot
+    - name: Install Godot editor + templates (if cache missed)
       if: steps.godot-cache.outputs.cache-hit != 'true'
       shell: pwsh
       run: |
@@ -38,20 +34,23 @@ jobs:
         Invoke-WebRequest "$base/Godot_v${env:GODOT_VER}_export_templates.tpz" -OutFile tpl.tpz
         Expand-Archive tpl.tpz -DestinationPath "$env:APPDATA\Godot\export_templates"
 
-    # ── Install rcedit in one line ─────────────────────────────
+    # ── rcedit in one line (Chocolatey) ───────────────────────
     - name: Install rcedit
       run: choco install rcedit --yes
 
-    # Godot finds rcedit.exe in PATH automatically on Windows
-    # ── Export preset ──────────────────────────────────────────
+    # ── Export and validate ──────────────────────────────────
     - name: Export Windows Desktop
       shell: pwsh
       run: |
         mkdir build\windows
-        & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
-            --headless --export-release "${env:WIN_PRESET}" `
-            build\windows\Explore.exe
+        & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" --headless `
+          --export-release "${env:PRESET}" build\windows\Explore.exe
+        if (-not (Test-Path build\windows\Explore.exe)) {
+          Write-Error "❌ Godot did not produce Explore.exe"
+          exit 1
+        }
 
+    # ── Upload artifact ──────────────────────────────────────
     - uses: actions/upload-artifact@v4
       with:
         name: windows-build
