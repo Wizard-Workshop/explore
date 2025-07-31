@@ -67,7 +67,8 @@ jobs:
           --headless `
           --set editor/export/windows/rcedit "$rcedit" `
           --verbose `
-          --export-release "${env:PRESET}" "build/windows/Explore.exe" `
+          --export-release-template "$env:APPDATA\Godot\export_templates\4.4.1.stable\windows_release_x86_64.exe" `
+          "${env:PRESET}" "build/windows/Explore.exe" `
           2>&1 | Tee-Object -FilePath godot_export.log
 
         $exit = $LASTEXITCODE
