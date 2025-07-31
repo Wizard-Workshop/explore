@@ -1,9 +1,9 @@
-name: Release • bundled artifacts
+name: Release - bundled artifacts
 
 on:
   workflow_run:
     # Add more build workflows here as you create them
-    workflows: ["Build • Windows"]
+    workflows: ["Build - Windows"]
     types: [completed]
 
 jobs:

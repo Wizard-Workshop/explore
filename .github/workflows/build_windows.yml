@@ -1,0 +1,58 @@
+# .github/workflows/windows_build.yml
+name: Build • Windows
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+env:
+  GODOT_VER: 4.4.1-stable
+  WIN_PRESET: "Windows Desktop"
+
+jobs:
+  win-build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with: {submodules: recursive}
+
+    # ── Cache editor + templates ───────────────────────────────
+    - uses: actions/cache@v4
+      id: godot-cache
+      with:
+        path: |
+          C:\godot
+          ~\AppData\Roaming\Godot\export_templates
+        key: godot-win-${{ env.GODOT_VER }}-v1
+
+    # ── Install Godot + templates if cache missed ──────────────
+    - name: Install Godot
+      if: steps.godot-cache.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        $base = "https://github.com/godotengine/godot/releases/download/${env:GODOT_VER}"
+        Invoke-WebRequest "$base/Godot_v${env:GODOT_VER}_win64.exe.zip" -OutFile godot.zip
+        Expand-Archive godot.zip -DestinationPath C:\godot
+        Invoke-WebRequest "$base/Godot_v${env:GODOT_VER}_export_templates.tpz" -OutFile tpl.tpz
+        Expand-Archive tpl.tpz -DestinationPath "$env:APPDATA\Godot\export_templates"
+
+    # ── Install rcedit in one line ─────────────────────────────
+    - name: Install rcedit
+      run: winget install --accept-package-agreements --accept-source-agreements ElectronCommunity.rcedit
+
+    # Godot finds rcedit.exe in PATH automatically on Windows
+    # ── Export preset ──────────────────────────────────────────
+    - name: Export Windows Desktop
+      shell: pwsh
+      run: |
+        mkdir build\windows
+        & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
+            --headless --export-release "${env:WIN_PRESET}" `
+            build\windows\Explore.exe
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: build/windows
