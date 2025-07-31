@@ -25,7 +25,7 @@ jobs:
           path: |
             C:\godot
             ${{ env.USERPROFILE }}\AppData\Roaming\Godot\export_templates
-          key: godot-win-${{ env.GODOT_VER }}-v2
+          key: godot-win-${{ env.GODOT_VER }}-v3
 
       # ── Install Godot editor + templates (if cache missed) ────────────────
       - name: Install Godot editor + templates
@@ -56,7 +56,7 @@ jobs:
           path: |
             C:\godot
             ${{ env.USERPROFILE }}\AppData\Roaming\Godot\export_templates
-          key: godot-win-${{ env.GODOT_VER }}-v2
+          key: godot-win-${{ env.GODOT_VER }}-v3
 
       # ── rcedit helper (Chocolatey) ────────────────────────────────────────
       - name: Install rcedit
