@@ -82,7 +82,7 @@ jobs:
         foreach ($p in $pairs) {
           $src = Join-Path $dotDir $p.short
           $dst = Join-Path $dotDir $p.long
-          if (Test-Path $src -and -not (Test-Path $dst)) {
+          if ( (Test-Path $src) -and -not (Test-Path $dst) ) {
             Copy-Item $src $dst
           }
         }
