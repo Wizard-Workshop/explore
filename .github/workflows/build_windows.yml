@@ -45,7 +45,7 @@ jobs:
         echo "--- Contents of temporary template directory ($tempTplDir) ---"
         ls -Recurse $tempTplDir
 
-        $tplDir = "$env:APPDATA\Godot\export_templates\${env:GODOT_VER}"
+        $tplDir = "$env:APPDATA\Godot\export_templates\4.4.1.stable"
         New-Item -ItemType Directory -Force -Path $tplDir | Out-Null
         Copy-Item -Path "$tempTplDir\templates\*" -Destination $tplDir -Recurse -Force
         echo "--- Contents of final template directory ($tplDir) ---"
@@ -55,13 +55,6 @@ jobs:
     - name: Install rcedit
       run: choco install rcedit --yes
 
-    - name: Tell Godot where rcedit.exe lives
-      shell: pwsh
-      run: |
-        $rcedit = (Get-Command rcedit).Source
-        & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
-          --headless `
-          --set editor/export/windows/rcedit "$rcedit"
 
     # ── Export the Windows build (logs streamed & saved) ──────────────────────
     - name: Export Windows Desktop
@@ -69,8 +62,11 @@ jobs:
       run: |
         mkdir -Force build\windows
 
+        $rcedit = (Get-Command rcedit).Source
         & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
-          --headless --verbose `
+          --headless `
+          --set editor/export/windows/rcedit "$rcedit" `
+          --verbose `
           --export-release "${env:PRESET}" "build/windows/Explore.exe" `
           2>&1 | Tee-Object -FilePath godot_export.log
 
