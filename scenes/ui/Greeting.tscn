@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3 uid="uid://d3uduxdl2i4t2"]
+[gd_scene load_steps=4 format=3 uid="uid://d3uduxdl2i4t2"]
 
 [ext_resource type="Script" uid="uid://cha5bswu6jpbh" path="res://scripts/Greeting.gd" id="1_fr5vd"]
+[ext_resource type="Texture2D" uid="uid://d2oawoh2qhnn3" path="res://assets/textures/logo.png" id="2_clj74"]
+[ext_resource type="Script" uid="uid://doeqryq5f787u" path="res://scripts/helpers/DisableOnWeb.gd" id="2_iiqy4"]
 
 [node name="GreetingCanvas" type="CanvasLayer" node_paths=PackedStringArray("greetingLabel")]
 script = ExtResource("1_fr5vd")
@@ -12,12 +14,23 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -142.0
-offset_top = -27.5
-offset_right = 142.0
-offset_bottom = 27.5
+offset_left = -150.0
+offset_top = -226.5
+offset_right = 150.0
+offset_bottom = 226.5
 grow_horizontal = 2
 grow_vertical = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_constants/separation = 20
+
+[node name="TextureRect" type="TextureRect" parent="VBoxContainer"]
+custom_minimum_size = Vector2(200, 200)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("2_clj74")
+expand_mode = 1
 
 [node name="Label" type="Label" parent="VBoxContainer"]
 layout_mode = 2
@@ -26,13 +39,14 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="StartGameButton" type="Button" parent="VBoxContainer"]
-custom_minimum_size = Vector2(200, 50)
+custom_minimum_size = Vector2(300, 75)
 layout_mode = 2
 focus_mode = 0
 text = "Start game"
 
 [node name="ExitGameButton" type="Button" parent="VBoxContainer"]
-custom_minimum_size = Vector2(200, 50)
+custom_minimum_size = Vector2(300, 75)
 layout_mode = 2
 focus_mode = 0
 text = "Exit"
+script = ExtResource("2_iiqy4")
