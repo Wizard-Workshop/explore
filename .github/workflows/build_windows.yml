@@ -52,41 +52,46 @@ jobs:
         Copy-Item "$tempTplDir\templates\*" $tplDir -Recurse -Force
 
     # ── Normalise template dir + filenames (runs EVERY build) ───────────────
+    # ── Normalise template dir + filenames ──────────────────────────────────
     - name: Normalise template directory & filenames
       shell: pwsh
       run: |
-        $tplParent = "$env:APPDATA\Godot\export_templates"
-        $dashDir   = Join-Path $tplParent $env:GODOT_VER             # 4.4.1-stable
-        $dotDir    = Join-Path $tplParent ($env:GODOT_VER -replace '-', '.')  # 4.4.1.stable
+        $tplParent = Join-Path $Env:APPDATA 'Godot\export_templates'
+        $dashDir   = Join-Path $tplParent $Env:GODOT_VER              # 4.4.1-stable
+        $dotDir    = Join-Path $tplParent ($Env:GODOT_VER -replace '-', '.')  # 4.4.1.stable
 
-        # ┌ Rename dash → dot dir (if necessary) ──────────────────────────
-        if (Test-Path $dashDir -and -not (Test-Path $dotDir)) {
+        # ┌ Rename dash → dot dir (if necessary)
+        if ((Test-Path $dashDir) -and -not (Test-Path $dotDir)) {
           Write-Host "Renaming $dashDir → $dotDir"
           Move-Item $dashDir $dotDir
+        } else {
+          New-Item -ItemType Directory -Force -Path $dotDir | Out-Null
         }
 
-        # ┌ Flatten nested 'windows' folder, if present ───────────────────
+        # ┌ Flatten nested 'windows' folder, if present
         $nested = Join-Path $dotDir 'windows'
         if (Test-Path $nested) {
           Write-Host "Flattening nested $nested"
-          Copy-Item "$nested\*" $dotDir -Recurse -Force
+          Copy-Item (Join-Path $nested '*') $dotDir -Recurse -Force
+          Remove-Item $nested -Recurse -Force
         }
 
-        # ┌ Ensure correct filenames (…_x86_64.exe) ───────────────────────
-        $pairs = @(
-          @{ short='windows_debug.exe'   ; long='windows_debug_x86_64.exe'   },
-          @{ short='windows_release.exe' ; long='windows_release_x86_64.exe' }
-        )
-        foreach ($p in $pairs) {
-          $src = Join-Path $dotDir $p.short
-          $dst = Join-Path $dotDir $p.long
-          if (Test-Path $src -and -not (Test-Path $dst)) {
+        # ┌ Ensure correct filenames (…_x86_64.exe)
+        $mapping = @{
+          'windows_debug.exe'   = 'windows_debug_x86_64.exe'
+          'windows_release.exe' = 'windows_release_x86_64.exe'
+        }
+        foreach ($kvp in $mapping.GetEnumerator()) {
+          $src = Join-Path $dotDir $kvp.Key
+          $dst = Join-Path $dotDir $kvp.Value
+          if ((Test-Path $src) -and -not (Test-Path $dst)) {
             Copy-Item $src $dst
           }
         }
 
         Write-Host "📦 Export-template contents after normalisation:"
         Get-ChildItem $dotDir -Recurse | ForEach-Object { Write-Host $_.FullName }
+
 
     # ── rcedit helper ───────────────────────────────────────────────────────
     - name: Install rcedit
