@@ -41,7 +41,6 @@ jobs:
         name:       windows-build                 # must match exactly
         run-id:     ${{ github.event.workflow_run.id }}
         path:       dist
-        repository: ${{ github.repository }}
 
     # ── 3. Ensure something actually arrived ─────────────────────────────────
     - name: Ensure artifacts exist
