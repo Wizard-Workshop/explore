@@ -35,15 +35,12 @@ jobs:
           }
 
     # ── 2. Download the build artifacts ──────────────────────────────────────
-    - name: Download build artifacts
-      id: download_artifact
+    - name: Download Windows build artifact
       uses: actions/download-artifact@v4
       with:
-        # use a pattern so it will match “windows-build”, “linux-build” … later
-        pattern: "*-build"
-        run-id: ${{ github.event.workflow_run.id }}
-        path:   dist
-        merge-multiple: true
+        name:       windows-build                 # must match exactly
+        run-id:     ${{ github.event.workflow_run.id }}
+        path:       dist
         repository: ${{ github.repository }}
 
     # ── 3. Ensure something actually arrived ─────────────────────────────────
