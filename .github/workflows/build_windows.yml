@@ -56,31 +56,34 @@ jobs:
       run: choco install rcedit --yes
 
 
+    - name: Install rcedit
+      run: choco install rcedit --yes
+
+    - name: Tell Godot where rcedit.exe is
+      shell: pwsh
+      run: |
+        $rcedit = (Get-Command rcedit).Source
+        & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
+            --headless --quit `
+            --set editor/export/windows/rcedit "$rcedit"
+
     # ── Export the Windows build (logs streamed & saved) ──────────────────────
     - name: Export Windows Desktop
       shell: pwsh
       run: |
         mkdir -Force build\windows
 
-        $rcedit = (Get-Command rcedit).Source
         & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
-          --headless `
-          --set editor/export/windows/rcedit "$rcedit" `
-          --verbose `
-          --export-release-template "$env:APPDATA\Godot\export_templates\4.4.1.stable\windows_release_x86_64.exe" `
-          "${env:PRESET}" "build/windows/Explore.exe" `
+          --headless --verbose `
+          --export-release "${env:PRESET}" "build/windows/Explore.exe" `
           2>&1 | Tee-Object -FilePath godot_export.log
 
         $exit = $LASTEXITCODE
-        Get-Content godot_export.log            # show log in the Action view
+        Get-Content godot_export.log          # stream log to Actions view
 
-        if ($exit -ne 0) {
-          Write-Error "❌ Godot export failed (exit $exit)"
-          exit $exit
-        }
+        if ($exit -ne 0) { Write-Error "❌ Godot export failed ($exit)"; exit $exit }
         if (-not (Test-Path "build/windows/Explore.exe")) {
-          Write-Error "❌ Godot did not produce Explore.exe"
-          exit 1
+          Write-Error "❌ Godot did not produce Explore.exe"; exit 1
         }
 
     # ── Upload artefact ───────────────────────────────────────────────────────
