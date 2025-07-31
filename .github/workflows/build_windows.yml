@@ -1,27 +1,26 @@
-# .github/workflows/build_windows.yml
+# .github/workflows/windows_build.yml
 name: Build & Release – Windows
 
 on:
   push:
-    branches: [main]      # nightly builds
-    tags:     ["v*"]      # versioned releases (v1.2.3)
+    branches: [ main ]
+    tags:     [ 'v*' ]        # build & release when you push a version tag
 
 env:
-  GODOT_VER: 4.4.1-stable          # bump when you upgrade Godot
-  PRESET:    "Windows Desktop"     # export preset name
+  GODOT_VER: 4.4.1-stable     # bump when you upgrade
+  PRESET:    "Windows Desktop"
 
 jobs:
-#───────────────────────────────────────────────────────────────────────────────
   win-build:
     runs-on: windows-latest
 
     steps:
-    # 1️⃣  Checkout ­­──────────────────────────────────────────────────────────
+    # ── Checkout ────────────────────────────────────────────────────────────
     - uses: actions/checkout@v4
       with:
         submodules: recursive
 
-    # 2️⃣  Restore / populate Godot cache ­­────────────────────────────────────
+    # ── Restore / populate cache for editor & templates ─────────────────────
     - name: Restore Godot cache
       id: godot-cache
       uses: actions/cache/restore@v4
@@ -29,40 +28,53 @@ jobs:
         path: |
           C:\godot
           ${{ env.USERPROFILE }}\AppData\Roaming\Godot\export_templates
-        key: godot-win-${{ env.GODOT_VER }}-v3      # <- bump if logic changes
+        key: godot-win-${{ env.GODOT_VER }}-v3      # bump if layout logic changes
 
-    - name: Install Godot editor + templates
+    - name: Install Godot editor + templates (only if cache missed)
       if: steps.godot-cache.outputs.cache-hit != 'true'
       shell: pwsh
       run: |
-        $ErrorActionPreference = "Stop"
         $base = "https://github.com/godotengine/godot/releases/download/${env:GODOT_VER}"
 
-        # ▸ Editor ----------------------------------------------------------------
+        # ▸ Editor  ─────────────────────────────────────────────────────────
         Invoke-WebRequest "$base/Godot_v${env:GODOT_VER}_win64.exe.zip" -OutFile godot.zip
         Expand-Archive godot.zip -DestinationPath C:\godot
 
-        # ▸ Export templates -------------------------------------------------------
+        # ▸ Templates download ─────────────────────────────────────────────
         Invoke-WebRequest "$base/Godot_v${env:GODOT_VER}_export_templates.tpz" -OutFile tpl.tpz
         $tempTplDir = "C:\temp_tpl"
         New-Item -ItemType Directory -Force -Path $tempTplDir | Out-Null
         Expand-Archive tpl.tpz -DestinationPath $tempTplDir
 
+        # Godot published them under 4.4.1-stable but the editor expects 4.4.1.stable
         $tplParent = "$env:APPDATA\Godot\export_templates"
-        $dashDir   = Join-Path $tplParent $env:GODOT_VER             # 4.4.1-stable
+        $dashDir   = Join-Path $tplParent $env:GODOT_VER              # 4.4.1-stable
         $dotDir    = Join-Path $tplParent ($env:GODOT_VER -replace '-', '.')  # 4.4.1.stable
 
-        # copy raw templates (Godot puts them in a 'windows' sub-dir)
+        # copy templates into the *dash* dir first (matches download name)
         New-Item -ItemType Directory -Force -Path $dashDir | Out-Null
         Copy-Item "$tempTplDir\templates\*" $dashDir -Recurse -Force
 
-        # ── normalise ──────────────────────────────────────────────────────────
-        if (Test-Path $dashDir -and -not (Test-Path $dotDir)) {
-          Move-Item $dashDir $dotDir
+        # ── Normalise directory & filenames ────────────────────────────────
+        if (Test-Path $dashDir) {
+          if (-not (Test-Path $dotDir)) {
+            Write-Host "Renaming $dashDir ➜ $dotDir"
+            Move-Item $dashDir $dotDir
+          } else {
+            # Both exist – keep the dot-version and discard the dash one
+            Remove-Item -Recurse -Force $dashDir
+          }
         }
-        $nested = Join-Path $dotDir 'windows'
-        if (Test-Path $nested) { Copy-Item "$nested\*" $dotDir -Recurse -Force }
 
+        # flatten an extra “windows” layer if present
+        $nested = Join-Path $dotDir 'windows'
+        if (Test-Path $nested) {
+          Write-Host "Flattening $nested into $dotDir"
+          Copy-Item "$nested\*" $dotDir -Recurse -Force
+          Remove-Item -Recurse -Force $nested
+        }
+
+        # ensure the filenames Godot expects
         $pairs = @(
           @{ short='windows_debug.exe'   ; long='windows_debug_x86_64.exe'   },
           @{ short='windows_release.exe' ; long='windows_release_x86_64.exe' }
@@ -70,8 +82,13 @@ jobs:
         foreach ($p in $pairs) {
           $src = Join-Path $dotDir $p.short
           $dst = Join-Path $dotDir $p.long
-          if (Test-Path $src -and -not (Test-Path $dst)) { Copy-Item $src $dst }
+          if (Test-Path $src -and -not (Test-Path $dst)) {
+            Copy-Item $src $dst
+          }
         }
+
+        Write-Host "📦 Template directory contents:"
+        Get-ChildItem $dotDir -Recurse | ForEach-Object { Write-Host "  • $($_.FullName)" }
 
     - name: Save Godot cache
       if: steps.godot-cache.outputs.cache-hit != 'true'
@@ -80,13 +97,13 @@ jobs:
         path: |
           C:\godot
           ${{ env.USERPROFILE }}\AppData\Roaming\Godot\export_templates
-        key: ${{ steps.godot-cache.outputs.cache-primary-key }}
+        key: godot-win-${{ env.GODOT_VER }}-v3
 
-    # 3️⃣  rcedit helper ­­──────────────────────────────────────────────────────
+    # ── rcedit helper --------------------------------------------------------
     - name: Install rcedit
       run: choco install rcedit --yes
 
-    - name: Tell Godot where rcedit.exe is
+    - name: Point Godot to rcedit.exe
       shell: pwsh
       run: |
         $rcedit = (Get-Command rcedit).Source
@@ -94,11 +111,54 @@ jobs:
             --headless --quit `
             --set editor/export/windows/rcedit "$rcedit"
 
-    # 4️⃣  Export ­­─────────────────────────────────────────────────────────────
-    - name: Export Windows build
+    # ── Export the game ------------------------------------------------------
+    - name: Export Windows release
       shell: pwsh
       run: |
         mkdir -Force build\windows
         & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
-          --headless --verbose `
-          --export-release "${env:PRESET}" "build/w
+            --headless --verbose `
+            --export-release "${env:PRESET}" "build/windows/Explore.exe" `
+            2>&1 | Tee-Object -FilePath godot_export.log
+
+        $exit = $LASTEXITCODE
+        Get-Content godot_export.log
+        if ($exit -ne 0) { Write-Error "❌ Godot export failed ($exit)"; exit $exit }
+        if (-not (Test-Path "build/windows/Explore.exe")) {
+          Write-Error "❌ Explore.exe not produced"; exit 1
+        }
+
+    # ── (optional) keep the artifact for manual download ---------------------
+    - uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: build/windows/Explore.exe
+
+    # ── Decide the release tag ----------------------------------------------
+    - name: Decide tag / prerelease flag
+      id: tag
+      shell: pwsh
+      run: |
+        if ("${{ github.ref }}".StartsWith('refs/tags/v')) {
+          $tag = "${{ github.ref }}".Replace('refs/tags/', '')
+          echo "tag=$tag"           >> $env:GITHUB_OUTPUT
+          echo "prerelease=false"   >> $env:GITHUB_OUTPUT
+        } else {
+          $short = "${{ github.sha }}".Substring(0,7)
+          echo "tag=nightly-$short" >> $env:GITHUB_OUTPUT
+          echo "prerelease=true"    >> $env:GITHUB_OUTPUT
+        }
+
+    # ── Create / update the GitHub Release ----------------------------------
+    - name: Create / Update GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name:   ${{ steps.tag.outputs.tag }}
+        name:       ${{ steps.tag.outputs.tag }}
+        prerelease: ${{ steps.tag.outputs.prerelease }}
+        draft:      false
+        body: |
+          Automated build from commit ${{ github.sha }}.
+        files: build/windows/Explore.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
