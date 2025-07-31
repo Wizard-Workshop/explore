@@ -5,7 +5,7 @@ on:
   push: { branches: [main], tags: ["v*"] }
 
 env:
-  GODOT_VER: 4.4.1-stable          # bump when you upgrade
+  GODOT_VER: 4.4.1-stable          # tag/asset name on GitHub (dash)
   PRESET:    "Windows Desktop"     # export preset name
 
 jobs:
@@ -13,84 +13,114 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # ── Checkout ───────────────────────────────────────────────────────────
-      - uses: actions/checkout@v4
-        with: { submodules: recursive }
+    # ── Checkout ────────────────────────────────────────────────────────────
+    - uses: actions/checkout@v4
+      with: { submodules: recursive }
 
-      # ── Restore cache (editor + templates) ────────────────────────────────
-      - name: Restore Godot cache
-        id: godot-cache
-        uses: actions/cache/restore@v4       # restore-only action
-        with:
-          path: |
-            C:\godot
-            ${{ env.USERPROFILE }}\AppData\Roaming\Godot\export_templates
-          key: godot-win-${{ env.GODOT_VER }}-v3
+    # ── Cache the editor + templates ────────────────────────────────────────
+    #    (key bumped to v5 so we drop the bad cache once)
+    - name: Cache Godot editor + templates
+      id: godot-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          C:\godot
+          ${{ env.USERPROFILE }}\AppData\Roaming\Godot\export_templates
+        key: godot-win-${{ env.GODOT_VER }}-v5
 
-      # ── Install Godot editor + templates (if cache missed) ────────────────
-      - name: Install Godot editor + templates
-        if: steps.godot-cache.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          $base = "https://github.com/godotengine/godot/releases/download/${env:GODOT_VER}"
+    # ── Install editor + templates if the cache missed ──────────────────────
+    - name: Install Godot editor + templates (if cache missed)
+      if: steps.godot-cache.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        $base = "https://github.com/godotengine/godot/releases/download/${env:GODOT_VER}"
 
-          # ▸ Editor (C:\godot\Godot_vX.exe)
-          Invoke-WebRequest "$base/Godot_v${env:GODOT_VER}_win64.exe.zip" -OutFile godot.zip
-          Expand-Archive godot.zip -DestinationPath C:\godot
+        # ▸ Editor -----------------------------------------------------------
+        Invoke-WebRequest "$base/Godot_v${env:GODOT_VER}_win64.exe.zip" -OutFile godot.zip
+        Expand-Archive godot.zip -DestinationPath C:\godot
 
-          # ▸ Export templates (%APPDATA%\Godot\export_templates\<version>\…)
-          Invoke-WebRequest "$base/Godot_v${env:GODOT_VER}_export_templates.tpz" -OutFile tpl.tpz
-          $tempTplDir = "C:\temp_tpl"
-          New-Item -ItemType Directory -Force -Path $tempTplDir | Out-Null
-          Expand-Archive tpl.tpz -DestinationPath $tempTplDir
+        # ▸ Templates --------------------------------------------------------
+        Invoke-WebRequest "$base/Godot_v${env:GODOT_VER}_export_templates.tpz" -OutFile tpl.tpz
+        $tempTplDir = "C:\temp_tpl"
+        New-Item -Type Directory -Force -Path $tempTplDir | Out-Null
+        Expand-Archive tpl.tpz -DestinationPath $tempTplDir
 
-          $tplDir = "$env:APPDATA\Godot\export_templates\4.4.1.stable"   # ← dot-version
-          New-Item -ItemType Directory -Force -Path $tplDir | Out-Null
-          Copy-Item -Path "$tempTplDir\templates\*" -Destination $tplDir -Recurse -Force
+        #      Godot expects 4.4.1.stable (dot) not 4.4.1-stable (dash)
+        $dotVer = $env:GODOT_VER -replace '-', '.'
+        $tplDir = "$env:APPDATA\Godot\export_templates\$dotVer"
+        New-Item -Type Directory -Force -Path $tplDir | Out-Null
+        Copy-Item "$tempTplDir\templates\*" $tplDir -Recurse -Force
 
-      # ── Save cache so the next run is a hit ───────────────────────────────
-      - name: Save Godot cache
-        if: steps.godot-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            C:\godot
-            ${{ env.USERPROFILE }}\AppData\Roaming\Godot\export_templates
-          key: godot-win-${{ env.GODOT_VER }}-v3
+    # ── Normalise template dir + filenames (runs EVERY build) ───────────────
+    - name: Normalise template directory & filenames
+      shell: pwsh
+      run: |
+        $tplParent = "$env:APPDATA\Godot\export_templates"
+        $dashDir   = Join-Path $tplParent $env:GODOT_VER             # 4.4.1-stable
+        $dotDir    = Join-Path $tplParent ($env:GODOT_VER -replace '-', '.')  # 4.4.1.stable
 
-      # ── rcedit helper (Chocolatey) ────────────────────────────────────────
-      - name: Install rcedit
-        run: choco install rcedit --yes
+        # ┌ Rename dash → dot dir (if necessary) ──────────────────────────
+        if (Test-Path $dashDir -and -not (Test-Path $dotDir)) {
+          Write-Host "Renaming $dashDir → $dotDir"
+          Move-Item $dashDir $dotDir
+        }
 
-      - name: Tell Godot where rcedit.exe is
-        shell: pwsh
-        run: |
-          $rcedit = (Get-Command rcedit).Source
-          & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
-              --headless --quit `
-              --set editor/export/windows/rcedit "$rcedit"
+        # ┌ Flatten nested 'windows' folder, if present ───────────────────
+        $nested = Join-Path $dotDir 'windows'
+        if (Test-Path $nested) {
+          Write-Host "Flattening nested $nested"
+          Copy-Item "$nested\*" $dotDir -Recurse -Force
+        }
 
-      # ── Export the Windows build (logs streamed & saved) ──────────────────
-      - name: Export Windows Desktop
-        shell: pwsh
-        run: |
-          mkdir -Force build\windows
-
-          & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
-            --headless --verbose `
-            --export-release "${env:PRESET}" "build/windows/Explore.exe" `
-            2>&1 | Tee-Object -FilePath godot_export.log
-
-          $exit = $LASTEXITCODE
-          Get-Content godot_export.log
-
-          if ($exit -ne 0) { Write-Error "❌ Godot export failed ($exit)"; exit $exit }
-          if (-not (Test-Path "build/windows/Explore.exe")) {
-            Write-Error "❌ Godot did not produce Explore.exe"; exit 1
+        # ┌ Ensure correct filenames (…_x86_64.exe) ───────────────────────
+        $pairs = @(
+          @{ short='windows_debug.exe'   ; long='windows_debug_x86_64.exe'   },
+          @{ short='windows_release.exe' ; long='windows_release_x86_64.exe' }
+        )
+        foreach ($p in $pairs) {
+          $src = Join-Path $dotDir $p.short
+          $dst = Join-Path $dotDir $p.long
+          if (Test-Path $src -and -not (Test-Path $dst)) {
+            Copy-Item $src $dst
           }
+        }
 
-      # ── Upload artifact ───────────────────────────────────────────────────
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-build
-          path: build/windows/Explore.exe
+        Write-Host "📦 Export-template contents after normalisation:"
+        Get-ChildItem $dotDir -Recurse | ForEach-Object { Write-Host $_.FullName }
+
+    # ── rcedit helper ───────────────────────────────────────────────────────
+    - name: Install rcedit
+      run: choco install rcedit --yes
+
+    - name: Configure rcedit path in Godot
+      shell: pwsh
+      run: |
+        $rcedit = (Get-Command rcedit).Source
+        & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
+            --headless --quit `
+            --set editor/export/windows/rcedit "$rcedit"
+
+    # ── Export the Windows build ────────────────────────────────────────────
+    - name: Export Windows Desktop
+      shell: pwsh
+      run: |
+        mkdir -Force build\windows
+
+        & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" `
+          --headless --verbose `
+          --export-release "${env:PRESET}" "build/windows/Explore.exe" `
+          2>&1 | Tee-Object -FilePath godot_export.log
+
+        $exit = $LASTEXITCODE
+        Get-Content godot_export.log                     # stream to console
+
+        if ($exit -ne 0) { Write-Error "❌ Godot export failed ($exit)"; exit $exit }
+        if (-not (Test-Path "build/windows/Explore.exe")) {
+          Write-Error "❌ Godot did not produce Explore.exe"; exit 1
+        }
+
+    # ── Upload artefact ────────────────────────────────────────────────────
+    - uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: build/windows/Explore.exe
