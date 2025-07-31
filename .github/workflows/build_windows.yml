@@ -42,10 +42,14 @@ jobs:
     - name: Export Windows Desktop
       shell: pwsh
       run: |
-        mkdir build\windows
+        mkdir -Force build\windows
         & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" --headless `
-          --export-release "${env:PRESET}" build\windows\Explore.exe
-        if (-not (Test-Path build\windows\Explore.exe)) {
+          --export-release "${env:PRESET}" "build/windows/Explore.exe"
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "❌ Godot export failed (exit $LASTEXITCODE)"
+          exit $LASTEXITCODE
+        }
+        if (-not (Test-Path "build/windows/Explore.exe")) {
           Write-Error "❌ Godot did not produce Explore.exe"
           exit 1
         }

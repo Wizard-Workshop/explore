@@ -13,6 +13,7 @@ jobs:
 
     steps:
     - name: Download build artifacts
+      id: download_artifact
       uses: actions/download-artifact@v4
       with:
         pattern: "*-build"                # QUOTED so YAML treats it as a string
@@ -48,7 +49,7 @@ jobs:
         body: |
           Automated build from commit ${{ github.event.workflow_run.head_sha }}.
           Artifacts:
-          ${{ join(fromJson(steps.download-artifact.outputs.artifacts).*, ', ') }}
+          ${{ join(fromJson(steps.download_artifact.outputs.artifacts).*, ', ') }}
         files: dist/**/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
