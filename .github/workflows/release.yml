@@ -1,10 +1,14 @@
-# .github/workflows/release.yml
 name: Release • bundled artifacts
 
 on:
   workflow_run:
-    workflows: ["Build - Windows"]      # add more build workflows here later
+    workflows: ["Build - Windows"]      # add more build workflows later
     types: [completed]
+
+# ── the token MUST be allowed to read artifacts from other runs ──────────────
+permissions:
+  actions: read       # <- crucial
+  contents: write     # the GH-Release step still needs this
 
 jobs:
   gather-and-release:
@@ -12,52 +16,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. Grab the artifacts produced by the build run ───────────────────
+      # ── Download the build artifact(s) from the completed Windows run ─────
       - name: Download build artifacts
-        id: download_artifact
         uses: actions/download-artifact@v4
         with:
-          pattern: "*-build"                 # matches “windows-build”
-          run-id:  ${{ github.event.workflow_run.id }}   # ← the BUILD run
-          repository: ${{ github.repository }}            # same repo, just explicit
-          path: dist
-          merge-multiple: true
+          name: windows-build                 # exact artifact name
+          run-id: ${{ github.event.workflow_run.id }}
+          path: dist                          # everything lands in ./dist
 
-      # ── 2. Sanity-check that something actually came down ─────────────────
+      # ── Sanity-check ──────────────────────────────────────────────────────
       - name: Ensure artifacts exist
         run: |
           if [[ ! -d dist || -z "$(ls -A dist)" ]]; then
-            echo "No *-build artifacts found for run ${{ github.event.workflow_run.id }}."
+            echo "No windows-build artifact found for run ${{ github.event.workflow_run.id }}."
             exit 1
           fi
-          # quick peek for debugging
           tree -L 2 dist
 
-      # ── 3. Decide which tag we’re publishing to ---------------------------
+      # ── Decide tag name (nightly vs semver) ───────────────────────────────
       - name: Decide tag
         id: tag
         run: |
           if [[ "${{ github.event.workflow_run.head_branch }}" =~ ^v[0-9] ]]; then
-            echo "tag=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
+            echo "prerelease=false" >> $GITHUB_OUTPUT
           else
-            echo "tag=nightly-${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
-            echo "prerelease=true"  >> "$GITHUB_OUTPUT"
+            echo "tag=nightly-${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+            echo "prerelease=true"  >> $GITHUB_OUTPUT
           fi
 
-      # ── 4. Create (or update) the GitHub Release --------------------------
+      # ── Publish (or update) the GitHub Release ───────────────────────────
       - name: Create / Update GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name:   ${{ steps.tag.outputs.tag }}
           name:       ${{ steps.tag.outputs.tag }}
           prerelease: ${{ steps.tag.outputs.prerelease }}
-          draft:      false
+          draft: false
           body: |
             Automated build from commit ${{ github.event.workflow_run.head_sha }}.
-
-            Artifacts included:
-            ${{ join(fromJson(steps.download_artifact.outputs.artifacts).*, ', ') }}
+            Artifact: windows-build
           files: dist/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
