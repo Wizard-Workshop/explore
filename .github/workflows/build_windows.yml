@@ -44,7 +44,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $tempTplDir | Out-Null
           Expand-Archive tpl.tpz -DestinationPath $tempTplDir
 
-          $tplDir = "$env:APPDATA\Godot\export_templates\${env:GODOT_VER}"
+          $tplDir = "$env:APPDATA\Godot\export_templates\4.4.1.stable"   # ← dot-version
           New-Item -ItemType Directory -Force -Path $tplDir | Out-Null
           Copy-Item -Path "$tempTplDir\templates\*" -Destination $tplDir -Recurse -Force
 
