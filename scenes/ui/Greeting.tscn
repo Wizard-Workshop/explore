@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cha5bswu6jpbh" path="res://scripts/Greeting.gd" id="1_fr5vd"]
 
-[node name="CanvasLayer" type="CanvasLayer"]
+[node name="GreetingCanvas" type="CanvasLayer"]
 script = ExtResource("1_fr5vd")
 
 [node name="Label" type="Label" parent="."]

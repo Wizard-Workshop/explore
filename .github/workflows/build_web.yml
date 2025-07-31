@@ -4,9 +4,7 @@ on:
   push:
     branches: [main]      # deploy on main
     tags:     ["v*"]      # …and version tags
-  pull_request:
-    branches: [main]      # build-only
-
+    
 permissions:              # required for deploy-pages
   contents: read
   pages: write
