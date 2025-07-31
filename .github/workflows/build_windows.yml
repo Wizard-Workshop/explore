@@ -40,7 +40,7 @@ jobs:
 
     # ── Install rcedit in one line ─────────────────────────────
     - name: Install rcedit
-      run: winget install --accept-package-agreements --accept-source-agreements ElectronCommunity.rcedit
+      run: choco install rcedit --yes
 
     # Godot finds rcedit.exe in PATH automatically on Windows
     # ── Export preset ──────────────────────────────────────────
