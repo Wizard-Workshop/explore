@@ -26,6 +26,10 @@ Game="*res://scripts/Game.gd"
 
 enabled=PackedStringArray("res://addons/wizardcore/plugin.cfg")
 
+[gui]
+
+theme/custom="uid://b8o8so86ma4ue"
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
