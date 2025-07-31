@@ -10,7 +10,8 @@ config_version=5
 
 [application]
 
-config/name="explore"
+config/name="Explore"
+config/version="0.0.1"
 run/main_scene="res://scenes/ui/Root.tscn"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 config/icon="res://icon.svg"
