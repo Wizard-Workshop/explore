@@ -43,11 +43,21 @@ jobs:
       shell: pwsh
       run: |
         mkdir -Force build\windows
+
+        # Run Godot, forward *both* streams, and capture a log file
         & "C:\godot\Godot_v${env:GODOT_VER}_win64.exe" --headless `
-          --export-release "${env:PRESET}" "build/windows/Explore.exe"
-        if ($LASTEXITCODE -ne 0) {
-          Write-Error "❌ Godot export failed (exit $LASTEXITCODE)"
-          exit $LASTEXITCODE
+          --verbose `
+          --export-release "${env:PRESET}" "build/windows/Explore.exe" `
+          2>&1 | Tee-Object -FilePath godot_export.log
+
+        $exit = $LASTEXITCODE
+
+        # Echo the log so it shows up inline in the Action
+        Get-Content godot_export.log
+
+        if ($exit -ne 0) {
+          Write-Error "❌ Godot export failed (exit $exit)"
+          exit $exit
         }
         if (-not (Test-Path "build/windows/Explore.exe")) {
           Write-Error "❌ Godot did not produce Explore.exe"
