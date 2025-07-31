@@ -1,9 +1,9 @@
-name: Release - bundled artifacts
+# .github/workflows/release.yml
+name: Release • bundled artifacts
 
 on:
   workflow_run:
-    # Add more build workflows here as you create them
-    workflows: ["Build - Windows"]
+    workflows: ["Build - Windows"]       # add more build workflows here later
     types: [completed]
 
 jobs:
@@ -12,44 +12,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
     - name: Download build artifacts
       uses: actions/download-artifact@v4
       with:
-        pattern: "*-build"                       # all artifacts that end in -build
-        run-id:  ${{ github.event.workflow_run.id }}
-        path:     dist
+        pattern: "*-build"                # QUOTED so YAML treats it as a string
+        run-id: ${{ github.event.workflow_run.id }}
+        path: dist
         merge-multiple: true
 
-    # 🔦 Manual guard: fail when nothing was downloaded
-    - name: Ensure artifacts were fetched
+    - name: Ensure artifacts exist
       run: |
         if [ -z "$(ls -A dist)" ]; then
-        echo "❌ No artifacts matched pattern '*-build' in this run."
-        exit 1
+          echo "No *-build artifacts found for run ${{ github.event.workflow_run.id }}."
+          exit 1
         fi
 
-    - name: Determine release tag
+    - name: Decide tag
       id: tag
       run: |
         if [[ "${{ github.event.workflow_run.head_branch }}" =~ ^v[0-9] ]]; then
-          echo tag=${{ github.event.workflow_run.head_branch }} >> $GITHUB_OUTPUT
-          echo prerelease=false     >> $GITHUB_OUTPUT
+          echo "tag=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
+          echo "prerelease=false" >> $GITHUB_OUTPUT
         else
-          echo tag=nightly-${{ github.event.workflow_run.head_sha }} >> $GITHUB_OUTPUT
-          echo prerelease=true      >> $GITHUB_OUTPUT
+          echo "tag=nightly-${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+          echo "prerelease=true"  >> $GITHUB_OUTPUT
         fi
 
-    - name: Create or Update GitHub Release
+    - name: Create / Update GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         tag_name:  ${{ steps.tag.outputs.tag }}
         name:      ${{ steps.tag.outputs.tag }}
-        body: >
-          Automated build from commit ${{ github.event.workflow_run.head_sha }}.
-          Contains all artifacts ending in **-build**.
-        draft: false
         prerelease: ${{ steps.tag.outputs.prerelease }}
+        draft: false
+        body: |
+          Automated build from commit ${{ github.event.workflow_run.head_sha }}.
+          Artifacts:
+          ${{ join(fromJson(steps.download-artifact.outputs.artifacts).*, ', ') }}
         files: dist/**/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

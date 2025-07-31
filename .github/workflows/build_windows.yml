@@ -1,5 +1,5 @@
 # .github/workflows/windows_build.yml
-name: Build • Windows
+name: Build - Windows
 
 on:
   push:
