@@ -84,4 +84,13 @@ jobs:
           $exit = $LASTEXITCODE
           Get-Content godot_export.log
 
-          if ($exit -ne 0) { Write-Error "❌ Godot export failed ($exit)"; e
+          if ($exit -ne 0) { Write-Error "❌ Godot export failed ($exit)"; exit $exit }
+          if (-not (Test-Path "build/windows/Explore.exe")) {
+            Write-Error "❌ Godot did not produce Explore.exe"; exit 1
+          }
+
+      # ── Upload artifact ───────────────────────────────────────────────────
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: build/windows/Explore.exe
