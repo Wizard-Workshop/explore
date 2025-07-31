@@ -128,7 +128,7 @@ jobs:
           echo "prerelease=false"   >> $env:GITHUB_OUTPUT
         } else {
           $short = "${{ github.sha }}".Substring(0,7)
-          echo "tag=nightly-$short" >> $env:GITHUB_OUTPUT
+          echo "tag=ci-$short" >> $env:GITHUB_OUTPUT
           echo "prerelease=true"    >> $env:GITHUB_OUTPUT
         }
 
